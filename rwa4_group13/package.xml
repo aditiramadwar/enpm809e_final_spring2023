@@ -4,7 +4,8 @@
   <name>rwa4_group13</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
-  <maintainer email="aditiramadwar@hotmail.com">aditi</maintainer>
+  <maintainer email="adiram@umd.edu">aditi</maintainer>
+  <maintainer email="arunava@umd.edu">aditi</maintainer>
   <license>TODO: License declaration</license>
 
   <depend>rclpy</depend>

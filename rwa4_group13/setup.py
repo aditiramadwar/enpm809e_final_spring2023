@@ -20,6 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'listener = rwa4_group13.sub_second_task:main',
         ],
     },
 )
