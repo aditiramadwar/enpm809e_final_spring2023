@@ -3,60 +3,45 @@ from rclpy.node import Node
 
 # from std_msgs.msg import String
 from ariac_msgs.msg import Order
+from ariac_msgs.msg import AdvancedLogicalCameraImage
 
 class rwa4(Node):
-
     def __init__(self):
         super().__init__('rwa4')
         self.orders_sub = self.create_subscription(
             Order, '/ariac/orders', self.orders_callback, 10)
         
-        # self.table1_sub = self.create_subscription(
-        #     String, '/table1_camera',
-        #     self.listener1_callback,
-        #     10)
-        # self.table2_sub = self.create_subscription(
-        #     String,
-        #     '/table2_camera',
-        #     self.listener2_callback,
-        #     10)
+        qos_policy = rclpy.qos.QoSProfile(reliability=rclpy.qos.ReliabilityPolicy.BEST_EFFORT,
+                                          history=rclpy.qos.HistoryPolicy.KEEP_LAST,
+                                          depth=1)
+        
+        self.table1_sub = self.create_subscription(
+            AdvancedLogicalCameraImage, '/ariac/sensors/table1_camera/image',
+            self.table1_callback, qos_policy)
+        
+        self.table2_sub = self.create_subscription(
+            AdvancedLogicalCameraImage, '/ariac/sensors/table2_camera/image',
+            self.table2_callback, qos_policy)
+        
         self.orders_sub  # prevent unused variable warning
+        self.table1_sub
+        self.table2_sub
 
-    '''
-    /ariac/orders
-    id: MMB30H56
-    type: 0
-    priority: false
-    kitting_task:
-    agv_number: 4
-    tray_id: 3
-    destination: 3
-    parts:
-    - part:
-        color: 2
-        type: 10
-        quadrant: 3
-    - part:
-        color: 4
-        type: 11
-        quadrant: 1
-    assembly_task:
-    agv_numbers: []
-    station: 0
-    parts: []
-    combined_task:
-    station: 0
-    parts: []
-    '''
     def orders_callback(self, msg):
-        self.get_logger().info('I heard /ariac/orders info: "%s"' % msg.id)
+        self.get_logger().info('/ariac/orders info: "%s"' % msg.id)
         # create object with all the msg information
 
-    # def listener1_callback(self, msg):
-    #     self.get_logger().info('I heard tabel 1 camera info: "%s"' % msg.data)
+    def table1_callback(self, msg):
+        self.get_logger().info('tabel 1 camera: id: "%s"' % msg.tray_poses[0].id)
+        self.get_logger().info('tabel 1 camera: position x: "%s"' % msg.tray_poses[0].pose.position.x)
+        self.get_logger().info('tabel 1 camera: position y: "%s"' % msg.tray_poses[0].pose.position.y)
+        self.get_logger().info('tabel 1 camera: position z: "%s"' % msg.tray_poses[0].pose.position.z)
 
-    # def listener2_callback(self, msg):
-    #     self.get_logger().info('I heard: "%s"' % msg.data)
+    def table2_callback(self, msg):
+        self.get_logger().info('tabel 2 camera: id: "%s"' % msg.tray_poses[0].id)
+        self.get_logger().info('tabel 2 camera: position x: "%s"' % msg.tray_poses[0].pose.position.x)
+        self.get_logger().info('tabel 2 camera: position y: "%s"' % msg.tray_poses[0].pose.position.y)
+        self.get_logger().info('tabel 2 camera: position z: "%s"' % msg.tray_poses[0].pose.position.z)
 
 def main(args=None):
     rclpy.init(args=args)
