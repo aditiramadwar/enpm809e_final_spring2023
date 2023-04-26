@@ -7,18 +7,23 @@ from geometry_msgs.msg import Pose
 import PyKDL
 
 class Part():
-    def __init__(self, part_color, part_type, part_quadrant) -> None:
-        self.color_dict = {0:"Red", 1:"Green", 2 : "Blue", 3: "Orange", 4: "Purple"}
-        self.type_dict = {10:"Battery", 11: "Pump", 12:"Sensor", 13:"Regulator"}
-        self.color = self.color_dict[part_color]
-        self.type = self.type_dict[part_type]
-        self.quadrant = part_quadrant
+
+    color_dict = {0:"Red", 1:"Green", 2 : "Blue", 3: "Orange", 4: "Purple"}
+    type_dict = {10:"Battery", 11: "Pump", 12:"Sensor", 13:"Regulator"}
+
+    def __init__(self, part_color, part_type, **kwargs) -> None:
+
+        self.color = part_color
+        self.type = part_type
+        if kwargs:
+            self.quadrant = kwargs["part_quadrant"]
     
     def __str__(self) -> str:
         
-        return "\n\t- {} {} \n\t\t- pose : \n\t\t\t- position: [] \n\t\t\t- orientation: []".format(self.color, self.type)
-    
-        # return "color : {},\n\t type : {},\n\t quadrant : {}\n\t".format(self.color, self.type, self.quadrant)
+        if self.quadrant:
+            return "color : {},\n\t type : {},\n\t quadrant : {}\n\t".format(self.color, self.type, self.quadrant)
+        else:
+            return "color : {},\n\t type : {}\n\t".format(self.color, self.type)
 
 class Kitting_Task():
     def __init__(self, agv_number, tray_id, destination, parts) -> None:
@@ -31,11 +36,12 @@ class Kitting_Task():
                            for kitting_part in parts]
     
     def __str__(self) -> str:
-        part_string = "".join("\t{}".format(part.__str__()) for part in self.parts)
-        output = "Tray:\n\t- id : {} \n\t- pose:\n\t\t- position: [] \n\t\t- orientation: [] \n Part: {}".format(self.tray_id, part_string)
 
-        # part_string = "".join("part_{} : \n\t{}".format(str(idx), part.__str__()) for idx, part in enumerate(self.parts))
-        # output = "agv_number : {},\n tray_id : {},\n destination : {},\n parts : \n\t{}".format(self.agv_number, self.tray_id, self.destination, part_string)
+        # part_string = "".join("\t{}".format(part.__str__()) for part in self.parts)
+        # output = "Tray:\n\t- id : {} \n\t- pose:\n\t\t- position: [] \n\t\t- orientation: [] \n Part: {}".format(self.tray_id, part_string)
+
+        part_string = "".join("part_{} : \n\t{}".format(str(idx), part.__str__()) for idx, part in enumerate(self.parts))
+        output = "agv_number : {},\n tray_id : {},\n destination : {},\n parts : \n\t{}".format(self.agv_number, self.tray_id, self.destination, part_string)
 
         return output
 class AriacOrder():
@@ -51,13 +57,104 @@ class AriacOrder():
                                          )
 
     def __str__(self) -> str:
-        output = "\n----------------------\n--- Order {} ---\n----------------------\n {} \n".format(self.id, self.kitting_task.__str__())
+        # output = "\n----------------------\n--- Order {} ---\n----------------------\n {} \n".format(self.id, self.kitting_task.__str__())
         # output = "----------------------\n--- Order {} ---\n----------------------\n type : {},\n priority : {},\n kitting_task : {}".format(self.id, self.type, self.priority, self.kitting_task.__str__())
-
+        output = "id : {},\n type : {},\n priority : {},\n kitting_task : {}".format(self.id, self.type, self.priority, self.kitting_task.__str__())
         return output
 
-from geometry_msgs.msg import Pose
-import PyKDL
+
+
+class Position():
+
+    def __init__(self, x, y, z) -> None:
+        self.x = x
+        self.y = y
+        self.z = z
+    
+    def __str__(self) -> str:
+        
+        return "position: \n\t x : {},\n\t y : {},\n\t z : {}\n\t".format(self.x, self.y, self.z)
+
+class Orientation():
+
+    def __init__(self, x, y, z, w) -> None:
+        self.x = x
+        self.y = y
+        self.z = z
+        self.w = w
+    
+    def __str__(self) -> str:
+        
+        return "orientation: \n\t x : {},\n\t y : {},\n\t z : {},\n\t w : {}\n\t".format(self.x, self.y, self.z, self.w)
+
+class ObjectPose():
+    
+    def __init__(self, object_position, object_orientation) -> None:
+
+        self.position = Position(x = object_position.x,
+                                 y = object_position.y,
+                                 z = object_position.z)
+        
+        self.orientation = Orientation(x = object_orientation.x,
+                                       y = object_orientation.y,
+                                       z = object_orientation.z,
+                                       w = object_orientation.w)
+    
+    def __str__(self) -> str:
+        
+        return "{}\n{}".format(self.position.__str__(), self.orientation.__str__())
+        
+
+class TrayPoses():
+
+    def __init__(self, tray_poses, sensor_pose) -> None:
+        
+        self.ids = []
+        self.poses = []
+        for tray_pose in tray_poses:
+
+            self.ids.append(tray_pose.id)
+            self.poses.append(ObjectPose(object_position = tray_pose.pose.position,
+                                        object_orientation = tray_pose.pose.orientation))
+        
+        self.sensor_pose = ObjectPose(object_position = sensor_pose.position,
+                                      object_orientation= sensor_pose.orientation)
+
+    def __str__(self) -> str:
+        
+        # part_string = "".join("part_{} : \n\t{}".format(str(idx), part.__str__()) for idx, part in enumerate(self.parts))
+        # output = "agv_number : {},\n tray_id : {},\n destination : {},\n parts : \n\t{}".format(self.agv_number, self.tray_id, self.destination, part_string)
+        output = "tray_poses: \n"+"".join("tray_id : {}\n{}".format(str(tray_id), pose.__str__()) for tray_id, pose in zip(self.ids, self.poses)) 
+
+        # return output+ "\n\t sensor pose: \n".format(self.sensor_pose.__str__())
+        return self.sensor_pose.__str__()
+
+class PartPoses():
+
+    def __init__(self, part_poses, sensor_pose) -> None:
+        
+        self.parts = []
+        self.poses = []
+        for part_pose in part_poses:
+
+            self.parts.append(Part(part_color = part_pose.part.color,
+                                   part_type = part_pose.part.type))
+            self.poses.append(ObjectPose(object_position = part_pose.pose.position,
+                                        object_orientation = part_pose.pose.orientation))
+        
+        self.sensor_pose = ObjectPose(object_position = sensor_pose.position,
+                                      object_orientation= sensor_pose.orientation)
+
+        def __str__(self) -> str:
+        
+            # part_string = "".join("part_{} : \n\t{}".format(str(idx), part.__str__()) for idx, part in enumerate(self.parts))
+            # output = "agv_number : {},\n tray_id : {},\n destination : {},\n parts : \n\t{}".format(self.agv_number, self.tray_id, self.destination, part_string)
+            output = "part_poses: \n"+"".join("{}/n{}".format(part.__str__(), pose.__str__()) for part, pose in zip(self.parts, self.poses)) + "\n\t".format(self.sensor_pose.__str__())
+            # print(output)
+            return output
+
+            
+
 
 class rwa4(Node):
     def __init__(self):
@@ -102,17 +199,37 @@ class rwa4(Node):
 
     def table1_callback(self, msg):
         # self.get_logger().info('tabel 1 camera: id: "%s"' % msg.tray_poses[0].id)
+
         if(len(msg.tray_poses) != 0):
             tray_world_frame = Pose()
             tray_world_frame = self._multiply_pose(msg.sensor_pose, msg.tray_poses[0].pose)
+
+        # tray_world_frame = Pose()
+        # tray_world_frame = self._multiply_pose(msg.sensor_pose, msg.tray_poses[0].pose)
+        
+        tray_poses = TrayPoses(tray_poses = msg.tray_poses,
+                          sensor_pose = msg.sensor_pose)
+
+
         # self.get_logger().info('tray in world frame: position x: "%s"' % tray_world_frame.position.x)
+        self.get_logger().info('tray pose : "%s"' % tray_poses.__str__())
+
 
     def table2_callback(self, msg):
         # self.get_logger().info('tabel 2 camera: id: "%s"' % msg.tray_poses[0].id)
+
         if(len(msg.tray_poses) != 0):
             tray_world_frame = Pose()
             tray_world_frame = self._multiply_pose(msg.sensor_pose, msg.tray_poses[0].pose)
+
+        # tray_world_frame = Pose()
+        # tray_world_frame = self._multiply_pose(msg.sensor_pose, msg.tray_poses[0].pose)
+
         # self.get_logger().info('tray in world frame: position x: "%s"' % tray_world_frame.position.x)
+        tray_poses = TrayPoses(tray_poses = msg.tray_poses,
+                          sensor_pose = msg.sensor_pose)
+        
+        # self.get_logger().info('tray pose : "%s"' % tray_poses.__str__())
 
     def left_bin_callback(self, msg):
         # color, type
@@ -121,15 +238,29 @@ class rwa4(Node):
         if(len(msg.part_poses) != 0):
             part_world_frame = Pose()
             part_world_frame = self._multiply_pose(msg.sensor_pose, msg.part_poses[0].pose)
+
+        # part_world_frame = Pose()
+        # part_world_frame = self._multiply_pose(msg.sensor_pose, msg.part_poses[0].pose)
+
         # self.get_logger().info('left part in world frame: position x: "%s"' % part_world_frame.position.x)
+        part_poses = PartPoses(part_poses = msg.part_poses,
+                          sensor_pose = msg.sensor_pose)
+        # print(part_poses.__str__())
+        # self.get_logger().info( 'part pose : "%s"' % "omgggg")
 
     def right_bin_callback(self, msg):
         # color, type
         # self.get_logger().info('tabel 2 camera: id: "%s"' % msg.part_poses[0].part)
+
         if(len(msg.part_poses) != 0):
             part_world_frame = Pose()
             part_world_frame = self._multiply_pose(msg.sensor_pose, msg.part_poses[0].pose)
+
+        # part_world_frame = Pose()
+        # part_world_frame = self._multiply_pose(msg.sensor_pose, msg.part_poses[0].pose)
+
         # self.get_logger().info('right part in world frame: position x: "%s"' % part_world_frame.position.x)
+        pass
 
     def _multiply_pose(self, pose1: Pose, pose2: Pose) -> Pose:
         '''
