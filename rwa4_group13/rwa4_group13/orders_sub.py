@@ -8,13 +8,18 @@ import PyKDL
 
 class Part():
     def __init__(self, part_color, part_type, part_quadrant) -> None:
-        self.color = part_color
-        self.type = part_type
+        self.color_dict = {0:"Red", 1:"Green", 2 : "Blue", 3: "Orange", 4: "Purple"}
+        self.type_dict = {10:"Battery", 11: "Pump", 12:"Sensor", 13:"Regulator"}
+        self.color = self.color_dict[part_color]
+        self.type = self.type_dict[part_type]
         self.quadrant = part_quadrant
     
     def __str__(self) -> str:
         
-        return "color : {},\n\t type : {},\n\t quadrant : {}\n\t".format(self.color, self.type, self.quadrant)
+        return "\n\t- {} {} \n\t\t- pose : \n\t\t\t- position: [] \n\t\t\t- orientation: []".format(self.color, self.type)
+    
+        # return "color : {},\n\t type : {},\n\t quadrant : {}\n\t".format(self.color, self.type, self.quadrant)
+
 class Kitting_Task():
     def __init__(self, agv_number, tray_id, destination, parts) -> None:
         self.agv_number = agv_number
@@ -26,8 +31,11 @@ class Kitting_Task():
                            for kitting_part in parts]
     
     def __str__(self) -> str:
-        part_string = "".join("part_{} : \n\t{}".format(str(idx), part.__str__()) for idx, part in enumerate(self.parts))
-        output = "agv_number : {},\n tray_id : {},\n destination : {},\n parts : \n\t{}".format(self.agv_number, self.tray_id, self.destination, part_string)
+        part_string = "".join("\t{}".format(part.__str__()) for part in self.parts)
+        output = "Tray:\n\t- id : {} \n\t- pose:\n\t\t- position: [] \n\t\t- orientation: [] \n Part: {}".format(self.tray_id, part_string)
+
+        # part_string = "".join("part_{} : \n\t{}".format(str(idx), part.__str__()) for idx, part in enumerate(self.parts))
+        # output = "agv_number : {},\n tray_id : {},\n destination : {},\n parts : \n\t{}".format(self.agv_number, self.tray_id, self.destination, part_string)
 
         return output
 class AriacOrder():
@@ -43,7 +51,8 @@ class AriacOrder():
                                          )
 
     def __str__(self) -> str:
-        output = "id : {},\n type : {},\n priority : {},\n kitting_task : {}".format(self.id, self.type, self.priority, self.kitting_task.__str__())
+        output = "\n----------------------\n--- Order {} ---\n----------------------\n {} \n".format(self.id, self.kitting_task.__str__())
+        # output = "----------------------\n--- Order {} ---\n----------------------\n type : {},\n priority : {},\n kitting_task : {}".format(self.id, self.type, self.priority, self.kitting_task.__str__())
 
         return output
 
@@ -93,28 +102,33 @@ class rwa4(Node):
 
     def table1_callback(self, msg):
         # self.get_logger().info('tabel 1 camera: id: "%s"' % msg.tray_poses[0].id)
-        tray_world_frame = Pose()
-        tray_world_frame = self._multiply_pose(msg.sensor_pose, msg.tray_poses[0].pose)
+        if(len(msg.tray_poses) != 0):
+            tray_world_frame = Pose()
+            tray_world_frame = self._multiply_pose(msg.sensor_pose, msg.tray_poses[0].pose)
         # self.get_logger().info('tray in world frame: position x: "%s"' % tray_world_frame.position.x)
 
     def table2_callback(self, msg):
         # self.get_logger().info('tabel 2 camera: id: "%s"' % msg.tray_poses[0].id)
-        tray_world_frame = Pose()
-        tray_world_frame = self._multiply_pose(msg.sensor_pose, msg.tray_poses[0].pose)
+        if(len(msg.tray_poses) != 0):
+            tray_world_frame = Pose()
+            tray_world_frame = self._multiply_pose(msg.sensor_pose, msg.tray_poses[0].pose)
         # self.get_logger().info('tray in world frame: position x: "%s"' % tray_world_frame.position.x)
 
     def left_bin_callback(self, msg):
         # color, type
         # self.get_logger().info('tabel 2 camera: id: "%s"' % msg.part_poses[0].part)
-        part_world_frame = Pose()
-        part_world_frame = self._multiply_pose(msg.sensor_pose, msg.part_poses[0].pose)
+
+        if(len(msg.part_poses) != 0):
+            part_world_frame = Pose()
+            part_world_frame = self._multiply_pose(msg.sensor_pose, msg.part_poses[0].pose)
         # self.get_logger().info('left part in world frame: position x: "%s"' % part_world_frame.position.x)
 
     def right_bin_callback(self, msg):
         # color, type
         # self.get_logger().info('tabel 2 camera: id: "%s"' % msg.part_poses[0].part)
-        part_world_frame = Pose()
-        part_world_frame = self._multiply_pose(msg.sensor_pose, msg.part_poses[0].pose)
+        if(len(msg.part_poses) != 0):
+            part_world_frame = Pose()
+            part_world_frame = self._multiply_pose(msg.sensor_pose, msg.part_poses[0].pose)
         # self.get_logger().info('right part in world frame: position x: "%s"' % part_world_frame.position.x)
 
     def _multiply_pose(self, pose1: Pose, pose2: Pose) -> Pose:
