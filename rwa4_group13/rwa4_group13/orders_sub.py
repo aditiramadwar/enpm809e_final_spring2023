@@ -1,9 +1,10 @@
 import rclpy
 from rclpy.node import Node
 
-# from std_msgs.msg import String
 from ariac_msgs.msg import Order
 from ariac_msgs.msg import AdvancedLogicalCameraImage
+from geometry_msgs.msg import Pose
+import PyKDL
 
 class Part():
     def __init__(self, part_color, part_type, part_quadrant) -> None:
@@ -41,12 +42,13 @@ class AriacOrder():
                                          parts = kitting_task.parts
                                          )
 
-
     def __str__(self) -> str:
         output = "id : {},\n type : {},\n priority : {},\n kitting_task : {}".format(self.id, self.type, self.priority, self.kitting_task.__str__())
 
         return output
 
+from geometry_msgs.msg import Pose
+import PyKDL
 
 class rwa4(Node):
     def __init__(self):
@@ -66,9 +68,19 @@ class rwa4(Node):
             AdvancedLogicalCameraImage, '/ariac/sensors/table2_camera/image',
             self.table2_callback, qos_policy)
         
-        self.orders_sub  # prevent unused variable warning
+        self.left_bin_sub = self.create_subscription(
+            AdvancedLogicalCameraImage, '/ariac/sensors/left_bins_camera/image',
+            self.left_bin_callback, qos_policy)
+        
+        self.right_bin_sub = self.create_subscription(
+            AdvancedLogicalCameraImage, '/ariac/sensors/right_bins_camera/image',
+            self.right_bin_callback, qos_policy)
+        
+        self.orders_sub
         self.table1_sub
         self.table2_sub
+        self.left_bin_sub
+        self.right_bin_sub
 
     def orders_callback(self, msg):
         order = AriacOrder(order_id = msg.id,
@@ -81,18 +93,66 @@ class rwa4(Node):
 
     def table1_callback(self, msg):
         # self.get_logger().info('tabel 1 camera: id: "%s"' % msg.tray_poses[0].id)
-        # self.get_logger().info('tabel 1 camera: position x: "%s"' % msg.tray_poses[0].pose.position.x)
-        # self.get_logger().info('tabel 1 camera: position y: "%s"' % msg.tray_poses[0].pose.position.y)
-        # self.get_logger().info('tabel 1 camera: position z: "%s"' % msg.tray_poses[0].pose.position.z)
-        pass
+        tray_world_frame = Pose()
+        tray_world_frame = self._multiply_pose(msg.sensor_pose, msg.tray_poses[0].pose)
+        # self.get_logger().info('tray in world frame: position x: "%s"' % tray_world_frame.position.x)
 
     def table2_callback(self, msg):
         # self.get_logger().info('tabel 2 camera: id: "%s"' % msg.tray_poses[0].id)
-        # self.get_logger().info('tabel 2 camera: position x: "%s"' % msg.tray_poses[0].pose.position.x)
-        # self.get_logger().info('tabel 2 camera: position y: "%s"' % msg.tray_poses[0].pose.position.y)
-        # self.get_logger().info('tabel 2 camera: position z: "%s"' % msg.tray_poses[0].pose.position.z)
-        pass
+        tray_world_frame = Pose()
+        tray_world_frame = self._multiply_pose(msg.sensor_pose, msg.tray_poses[0].pose)
+        # self.get_logger().info('tray in world frame: position x: "%s"' % tray_world_frame.position.x)
 
+    def left_bin_callback(self, msg):
+        # color, type
+        # self.get_logger().info('tabel 2 camera: id: "%s"' % msg.part_poses[0].part)
+        part_world_frame = Pose()
+        part_world_frame = self._multiply_pose(msg.sensor_pose, msg.part_poses[0].pose)
+        # self.get_logger().info('left part in world frame: position x: "%s"' % part_world_frame.position.x)
+
+    def right_bin_callback(self, msg):
+        # color, type
+        # self.get_logger().info('tabel 2 camera: id: "%s"' % msg.part_poses[0].part)
+        part_world_frame = Pose()
+        part_world_frame = self._multiply_pose(msg.sensor_pose, msg.part_poses[0].pose)
+        # self.get_logger().info('right part in world frame: position x: "%s"' % part_world_frame.position.x)
+
+    def _multiply_pose(self, pose1: Pose, pose2: Pose) -> Pose:
+        '''
+        Use KDL to multiply two poses together. Function taken from tf_node.py
+        Args:
+            pose1 (Pose): Pose of the first frame
+            pose2 (Pose): Pose of the second frame
+        Returns:
+            Pose: Pose of the resulting frame
+        '''
+
+        orientation1 = pose1.orientation
+        frame1 = PyKDL.Frame(
+            PyKDL.Rotation.Quaternion(orientation1.x, orientation1.y, orientation1.z, orientation1.w),
+            PyKDL.Vector(pose1.position.x, pose1.position.y, pose1.position.z))
+
+        orientation2 = pose2.orientation
+        frame2 = PyKDL.Frame(
+            PyKDL.Rotation.Quaternion(orientation2.x, orientation2.y, orientation2.z, orientation2.w),
+            PyKDL.Vector(pose2.position.x, pose2.position.y, pose2.position.z))
+
+        frame3 = frame1 * frame2
+
+        # return the resulting pose from frame3
+        pose = Pose()
+        pose.position.x = frame3.p.x()
+        pose.position.y = frame3.p.y()
+        pose.position.z = frame3.p.z()
+
+        q = frame3.M.GetQuaternion()
+        pose.orientation.x = q[0]
+        pose.orientation.y = q[1]
+        pose.orientation.z = q[2]
+        pose.orientation.w = q[3]
+
+        return pose
+    
 def main(args=None):
     rclpy.init(args=args)
     my_node = rwa4()
