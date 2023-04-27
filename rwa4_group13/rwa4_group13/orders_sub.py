@@ -15,8 +15,7 @@ class Part():
 
         self.color = part_color
         self.type = part_type
-        if kwargs:
-            self.quadrant = kwargs["part_quadrant"]
+        self.quadrant = kwargs["part_quadrant"] if kwargs else None
     
     def __str__(self) -> str:
         
@@ -126,8 +125,8 @@ class TrayPoses():
         # output = "agv_number : {},\n tray_id : {},\n destination : {},\n parts : \n\t{}".format(self.agv_number, self.tray_id, self.destination, part_string)
         output = "tray_poses: \n"+"".join("tray_id : {}\n{}".format(str(tray_id), pose.__str__()) for tray_id, pose in zip(self.ids, self.poses)) 
 
-        # return output+ "\n\t sensor pose: \n".format(self.sensor_pose.__str__())
-        return self.sensor_pose.__str__()
+        return output + "\n\t sensor pose: \n{}".format(self.sensor_pose.__str__())
+
 
 class PartPoses():
 
@@ -145,13 +144,13 @@ class PartPoses():
         self.sensor_pose = ObjectPose(object_position = sensor_pose.position,
                                       object_orientation= sensor_pose.orientation)
 
-        def __str__(self) -> str:
-        
-            # part_string = "".join("part_{} : \n\t{}".format(str(idx), part.__str__()) for idx, part in enumerate(self.parts))
-            # output = "agv_number : {},\n tray_id : {},\n destination : {},\n parts : \n\t{}".format(self.agv_number, self.tray_id, self.destination, part_string)
-            output = "part_poses: \n"+"".join("{}/n{}".format(part.__str__(), pose.__str__()) for part, pose in zip(self.parts, self.poses)) + "\n\t".format(self.sensor_pose.__str__())
-            # print(output)
-            return output
+    def __str__(self) -> str:
+    
+        # part_string = "".join("part_{} : \n\t{}".format(str(idx), part.__str__()) for idx, part in enumerate(self.parts))
+        # output = "agv_number : {},\n tray_id : {},\n destination : {},\n parts : \n\t{}".format(self.agv_number, self.tray_id, self.destination, part_string)
+        output = "part_poses: \n"+"".join("part_{} : \n{}\n{}".format(str(idx), part.__str__(), pose.__str__()) for idx, (part, pose) in enumerate(zip(self.parts, self.poses))) 
+        # print(output)
+        return output + "\n\t sensor pose: \n{}".format(self.sensor_pose.__str__())
 
             
 
@@ -212,7 +211,7 @@ class rwa4(Node):
 
 
         # self.get_logger().info('tray in world frame: position x: "%s"' % tray_world_frame.position.x)
-        self.get_logger().info('tray pose : "%s"' % tray_poses.__str__())
+        # self.get_logger().info('tray pose : "%s"' % tray_poses.__str__())
 
 
     def table2_callback(self, msg):
@@ -246,7 +245,7 @@ class rwa4(Node):
         part_poses = PartPoses(part_poses = msg.part_poses,
                           sensor_pose = msg.sensor_pose)
         # print(part_poses.__str__())
-        # self.get_logger().info( 'part pose : "%s"' % "omgggg")
+        # self.get_logger().info( 'part pose : "%s"' % part_poses.__str__())
 
     def right_bin_callback(self, msg):
         # color, type
