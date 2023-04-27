@@ -8,15 +8,11 @@ import PyKDL
 
 class Part():
 
-    color_dict = {0:"Red", 1:"Green", 2 : "Blue", 3: "Orange", 4: "Purple"}
-    type_dict = {10:"Battery", 11: "Pump", 12:"Sensor", 13:"Regulator"}
-
     def __init__(self, part_color, part_type, **kwargs) -> None:
 
         self.color = part_color
         self.type = part_type
-        if kwargs:
-            self.quadrant = kwargs["part_quadrant"]
+        self.quadrant = kwargs["part_quadrant"] if kwargs else None
     
     def __str__(self) -> str:
         
@@ -59,10 +55,6 @@ class AriacOrder():
 
     def __str__(self) -> str:
         output = "id : {},\n type : {},\n priority : {},\n kitting_task : {}".format(self.id, self.type, self.priority, self.kitting_task.__str__())
-        return output
-
-    def parse(self) -> str:
-        output = "\n----------------------\n--- Order {} ---\n----------------------\n".format(self.id)
         return output
 
 class Position():
@@ -165,8 +157,11 @@ class TrayPoses(WorldFrame):
         # output = "agv_number : {},\n tray_id : {},\n destination : {},\n parts : \n\t{}".format(self.agv_number, self.tray_id, self.destination, part_string)
         output = "tray_poses: \n"+"".join("tray_id : {}\n{}".format(str(tray_id), pose.__str__()) for tray_id, pose in zip(self.ids, self.poses)) 
 
-        # return output+ "\n\t sensor pose: \n".format(self.sensor_pose.__str__())
-        return self.sensor_pose.__str__()
+        return output + "\n\t sensor pose: \n{}".format(self.sensor_pose.__str__())
+
+
+        # return self.sensor_pose.__str__()
+    
 
 class PartPoses(WorldFrame):
 
@@ -185,13 +180,13 @@ class PartPoses(WorldFrame):
         self.sensor_pose = ObjectPose(object_position = sensor_pose.position,
                                       object_orientation= sensor_pose.orientation)
 
-        def __str__(self) -> str:
-        
-            # part_string = "".join("part_{} : \n\t{}".format(str(idx), part.__str__()) for idx, part in enumerate(self.parts))
-            # output = "agv_number : {},\n tray_id : {},\n destination : {},\n parts : \n\t{}".format(self.agv_number, self.tray_id, self.destination, part_string)
-            output = "part_poses: \n"+"".join("{}/n{}".format(part.__str__(), pose.__str__()) for part, pose in zip(self.parts, self.poses)) + "\n\t".format(self.sensor_pose.__str__())
-            # print(output)
-            return output
+    def __str__(self) -> str:
+    
+        # part_string = "".join("part_{} : \n\t{}".format(str(idx), part.__str__()) for idx, part in enumerate(self.parts))
+        # output = "agv_number : {},\n tray_id : {},\n destination : {},\n parts : \n\t{}".format(self.agv_number, self.tray_id, self.destination, part_string)
+        output = "part_poses: \n"+"".join("{}/n{}".format(part.__str__(), pose.__str__()) for part, pose in zip(self.parts, self.poses)) + "\n\t".format(self.sensor_pose.__str__())
+        # print(output)
+        return output
 
             
 
@@ -222,111 +217,121 @@ class rwa4(Node):
             AdvancedLogicalCameraImage, '/ariac/sensors/right_bins_camera/image',
             self.right_bin_callback, qos_policy)
         
+        # Flags for logging first messages
         self.table1_msg = False
         self.table2_msg = False
         self.left_bin_msg = False
         self.right_bin_msg = False
+        self.parse_flag = False
+
+        # self.tray1_poses = None
+        # self.order = None
+
+        self.color_dict = {0:"Red", 1:"Green", 2 : "Blue", 3: "Orange", 4: "Purple"}
+        self.type_dict = {10:"Battery", 11: "Pump", 12:"Sensor", 13:"Regulator"}
+
 
         # aditi: return/store the objects created for printing out everything in the end
 
     def orders_callback(self, msg):
-        order = AriacOrder(order_id = msg.id,
+        self.order = AriacOrder(order_id = msg.id,
                       order_type = msg.type,
                       order_priority = msg.priority,
                       kitting_task = msg.kitting_task
                       )
-        # self.get_logger().info('/ariac/orders info: "%s"' % order.__str__())
-        self.get_logger().info('/ariac/orders info: "%s"' % order.parse())
+        # self.parse_orders()
+        # self.get_logger().info('/ariac/orders info: "%s"' % self.order.__str__())
+        # self.get_logger().info('/ariac/orders info: "%s"' % self.order.parse())
 
         # enable the flags to log only the first message
         self.table1_msg = True
         self.table2_msg = True
         self.left_bin_msg = True
         self.right_bin_msg = True
+        self.parse_flag = True
+
 
     def table1_callback(self, msg):
         if self.table1_msg:
-            if(len(msg.tray_poses) != 0):
-                tray_world_frame1 = Pose()
-                tray_world_frame1 = self._multiply_pose(msg.sensor_pose, msg.tray_poses[0].pose)
-
-            # aditi: also feed in tray id
-            tray_poses = TrayPoses(tray_poses = msg.tray_poses,
+            self.tray1_poses = TrayPoses(tray_poses = msg.tray_poses,
                             sensor_pose = msg.sensor_pose)
 
 
             # self.get_logger().info('tray in world frame: position x: "%s"' % tray_world_frame.position.x)
-            # self.get_logger().info('tray pose : "%s"' % tray_poses.__str__())
+            self.get_logger().info('tray1 pose : "%s"' % self.tray1_poses.__str__())
             self.table1_msg = False
 
     def table2_callback(self, msg):
         if self.table2_msg:
-            if(len(msg.tray_poses) != 0):
-                tray_world_frame2 = Pose()
-                tray_world_frame2 = self._multiply_pose(msg.sensor_pose, msg.tray_poses[0].pose)
-
-            tray_poses = TrayPoses(tray_poses = msg.tray_poses,
+            self.tray2_poses = TrayPoses(tray_poses = msg.tray_poses,
                             sensor_pose = msg.sensor_pose)
             
-            self.get_logger().info('tray pose : "%s"' % tray_poses.__str__())
+            # self.get_logger().info('tray2 pose : "%s"' % self.tray2_poses.__str__())
             self.table2_msg = False
 
     def left_bin_callback(self, msg):
         if self.left_bin_msg:
-            if(len(msg.part_poses) != 0):
-                part_world_frame = Pose()
-                part_world_frame = self._multiply_pose(msg.sensor_pose, msg.part_poses[0].pose)
-
-            part_poses = PartPoses(part_poses = msg.part_poses,
+            self.part1_poses = PartPoses(part_poses = msg.part_poses,
                             sensor_pose = msg.sensor_pose)
             # print(part_poses.__str__())
-            self.get_logger().info('part_poses : "%s"' % part_poses.__str__())
+            self.get_logger().info('part1_poses : "%s"' % self.part1_poses.__str__())
             self.left_bin_msg = False
 
     def right_bin_callback(self, msg):
         if self.right_bin_msg:
-            if(len(msg.part_poses) != 0):
-                part_world_frame = Pose()
-                part_world_frame = self._multiply_pose(msg.sensor_pose, msg.part_poses[0].pose)
+            self.part2_poses = PartPoses(part_poses = msg.part_poses,
+                            sensor_pose = msg.sensor_pose)
+            self.get_logger().info('part2_poses : "%s"' % self.part2_poses.__str__())
+
+            ################## Parse and Print #############################
+            ######### order ##########
+            output = "\n----------------------\n--- Order {} ---\n----------------------\n".format(self.order.id)
+            self.get_logger().info('%s' % output)
+
+            ############ Tray ##########
+            tray_id = self.order.kitting_task.tray_id
+            # cur_tray_pose = None
+            for tray_poses in [self.tray1_poses, self.tray2_poses]:
+                for tray_id, tray_pose in zip(tray_poses.ids, tray_poses.poses):
+                    if self.order.kitting_task.tray_id == tray_id:
+                        cur_tray_pose = tray_pose
+                        break
+                        
+            output = "Tray:\n\t- id : {} \n\t- pose:\n\t\t- position: [{}, {}, {}] \n\t\t- orientation: [{}, {}, {}]".format(tray_id, 
+                                                                                                                   cur_tray_pose.position.x, 
+                                                                                                                   cur_tray_pose.position.y, 
+                                                                                                                   cur_tray_pose.position.z, 
+                                                                                                                   cur_tray_pose.orientation.x, 
+                                                                                                                   cur_tray_pose.orientation.y, 
+                                                                                                                   cur_tray_pose.orientation.z)
+            self.get_logger().info('%s' % output)
+
+            ######### Parts ##########
+            output = "\nPart:\n"
+            self.get_logger().info('%s' % output)
+
+            # for each part in order
+            for cur_part in self.order.kitting_task.parts:
+                # for parts in left and right bins
+                for part_poses in [self.part1_poses, self.part2_poses]:
+                    # for every part in each bin
+                    for part, part_pose in zip(part_poses, part_poses.poses):
+                        if cur_part.color == part.parts.part_color and cur_part.type == part.parts.part_type:
+                            cur_part_pose = part_pose
+                            break
+
+                output = "\t- {}\n\t\t- pose:\n\t\t\t- position: [{}, {}, {}] \n\t\t\t- orientation: [{}, {}, {}]".format(self.order.kitting_task.parts.color,
+                                                                                                                    cur_part_pose.position.x, 
+                                                                                                                    cur_part_pose.position.y, 
+                                                                                                                    cur_part_pose.position.z, 
+                                                                                                                    cur_part_pose.orientation.x, 
+                                                                                                                    cur_part_pose.orientation.y, 
+                                                                                                                    cur_part_pose.orientation.z)
+                self.get_logger().info('%s' % output)
+            ##############################################################
 
             self.right_bin_msg = False
 
-    def _multiply_pose(self, pose1: Pose, pose2: Pose) -> Pose:
-        '''
-        Use KDL to multiply two poses together. Function taken from tf_node.py
-        Args:
-            pose1 (Pose): Pose of the first frame
-            pose2 (Pose): Pose of the second frame
-        Returns:
-            Pose: Pose of the resulting frame
-        '''
-
-        orientation1 = pose1.orientation
-        frame1 = PyKDL.Frame(
-            PyKDL.Rotation.Quaternion(orientation1.x, orientation1.y, orientation1.z, orientation1.w),
-            PyKDL.Vector(pose1.position.x, pose1.position.y, pose1.position.z))
-
-        orientation2 = pose2.orientation
-        frame2 = PyKDL.Frame(
-            PyKDL.Rotation.Quaternion(orientation2.x, orientation2.y, orientation2.z, orientation2.w),
-            PyKDL.Vector(pose2.position.x, pose2.position.y, pose2.position.z))
-
-        frame3 = frame1 * frame2
-
-        # return the resulting pose from frame3
-        pose = Pose()
-        pose.position.x = frame3.p.x()
-        pose.position.y = frame3.p.y()
-        pose.position.z = frame3.p.z()
-
-        q = frame3.M.GetQuaternion()
-        pose.orientation.x = q[0]
-        pose.orientation.y = q[1]
-        pose.orientation.z = q[2]
-        pose.orientation.w = q[3]
-
-        return pose
-    
 def main(args=None):
     rclpy.init(args=args)
     my_node = rwa4()
