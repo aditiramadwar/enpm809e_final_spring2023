@@ -224,12 +224,16 @@ class rwa4(Node):
         self.right_bin_msg = False
         self.parse_flag = False
 
-        # self.tray1_poses = None
-        # self.order = None
+        self.tray1_poses = None
+        self.tray2_poses = None
+        self.part1_poses = None
+        self.part2_poses = None
+        self.order = None
 
         self.color_dict = {0:"Red", 1:"Green", 2 : "Blue", 3: "Orange", 4: "Purple"}
         self.type_dict = {10:"Battery", 11: "Pump", 12:"Sensor", 13:"Regulator"}
-
+        # self.fourhtfunc()
+        self.timed_function = self.create_timer(0.1, self.parse_print)
 
         # aditi: return/store the objects created for printing out everything in the end
 
@@ -257,9 +261,10 @@ class rwa4(Node):
                             sensor_pose = msg.sensor_pose)
 
 
-            # self.get_logger().info('tray in world frame: position x: "%s"' % tray_world_frame.position.x)
-            self.get_logger().info('tray1 pose : "%s"' % self.tray1_poses.__str__())
-            self.table1_msg = False
+            # self.get_logger().info('tray in world frame: position x: "%s"' % self.tray1_poses.poses[0].position.x)
+            # self.get_logger().info('tray1 pose : "%s"' % self.tray1_poses.poses[0].position.x)
+            if self.tray1_poses.poses and self.tray1_poses.sensor_pose:
+                self.table1_msg = False
 
     def table2_callback(self, msg):
         if self.table2_msg:
@@ -267,49 +272,66 @@ class rwa4(Node):
                             sensor_pose = msg.sensor_pose)
             
             # self.get_logger().info('tray2 pose : "%s"' % self.tray2_poses.__str__())
-            self.table2_msg = False
+            if self.tray2_poses.poses and self.tray2_poses.sensor_pose:
+                self.table2_msg = False
 
     def left_bin_callback(self, msg):
         if self.left_bin_msg:
             self.part1_poses = PartPoses(part_poses = msg.part_poses,
                             sensor_pose = msg.sensor_pose)
             # print(part_poses.__str__())
-            self.get_logger().info('part1_poses : "%s"' % self.part1_poses.__str__())
-            self.left_bin_msg = False
+            # self.get_logger().info('part1_poses : "%s"' % self.part1_poses.__str__())
+            if self.part1_poses.poses and self.part1_poses.sensor_pose:
+                self.part1_msg = False
 
     def right_bin_callback(self, msg):
         if self.right_bin_msg:
             self.part2_poses = PartPoses(part_poses = msg.part_poses,
                             sensor_pose = msg.sensor_pose)
-            self.get_logger().info('part2_poses : "%s"' % self.part2_poses.__str__())
+            # self.get_logger().info('part2_poses : "%s"' % self.part2_poses.__str__())
+            if self.part2_poses.poses and self.part2_poses.sensor_pose:
+                self.part2_msg = False
 
-            ################## Parse and Print #############################
-            ######### order ##########
+
+    def parse_print(self):
+
+        if (not (self.table1_msg and self.table2_msg and self.left_bin_msg and self.right_bin_msg)) and self.parse_flag:
+            # self.get_logger().info('%s' % self.tray1_poses.__str__())
+            # self.get_logger().info('tray1 pose : "%s"' % self.tray1_poses.ids)
+            # self.get_logger().info('%s' % str(self.table1_msg)+str(self.table2_msg)+str(self.left_bin_msg)+str(self.right_bin_msg))
             output = "\n----------------------\n--- Order {} ---\n----------------------\n".format(self.order.id)
             self.get_logger().info('%s' % output)
 
             ############ Tray ##########
             tray_id = self.order.kitting_task.tray_id
-            # cur_tray_pose = None
-            for tray_poses in [self.tray1_poses, self.tray2_poses]:
-                for tray_id, tray_pose in zip(tray_poses.ids, tray_poses.poses):
-                    if self.order.kitting_task.tray_id == tray_id:
-                        cur_tray_pose = tray_pose
-                        break
-                        
-            output = "Tray:\n\t- id : {} \n\t- pose:\n\t\t- position: [{}, {}, {}] \n\t\t- orientation: [{}, {}, {}]".format(tray_id, 
-                                                                                                                   cur_tray_pose.position.x, 
-                                                                                                                   cur_tray_pose.position.y, 
-                                                                                                                   cur_tray_pose.position.z, 
-                                                                                                                   cur_tray_pose.orientation.x, 
-                                                                                                                   cur_tray_pose.orientation.y, 
-                                                                                                                   cur_tray_pose.orientation.z)
+            cur_tray_pose = None
+            # for tray_poses in [self.tray1_poses, self.tray2_poses]:
+            #     for tray_id, tray_pose in zip(tray_poses.ids, tray_poses.poses):
+            #         if self.order.kitting_task.tray_id == tray_id:
+            #             cur_tray_pose = tray_pose
+            #             break
+            all_tray_ids = [*self.tray1_poses.ids, *self.tray2_poses.ids]
+            all_tray_poses = [*self.tray1_poses.poses, *self.tray2_poses.poses]
+
+            for idx, t_id in enumerate(all_tray_ids):
+                if t_id == tray_id:
+                    cur_tray_pose = all_tray_poses[idx]
+                    break
+            assert cur_tray_pose is not None, "No trays matched tray ID in Order"
+            output = "Tray:\n\t- id : {} \n\t- pose:\n\t\t- position: [{}, {}, {}] \n\t\t- orientation: [{}, {}, {}, {}]".format(tray_id, 
+                                                                                                                cur_tray_pose.position.x, 
+                                                                                                                cur_tray_pose.position.y, 
+                                                                                                                cur_tray_pose.position.z, 
+                                                                                                                cur_tray_pose.orientation.x, 
+                                                                                                                cur_tray_pose.orientation.y, 
+                                                                                                                cur_tray_pose.orientation.z,
+                                                                                                                cur_tray_pose.orientation.w)
             self.get_logger().info('%s' % output)
 
             ######### Parts ##########
             output = "\nPart:\n"
             self.get_logger().info('%s' % output)
-
+            
             # for each part in order
             for cur_part in self.order.kitting_task.parts:
                 # for parts in left and right bins
@@ -320,22 +342,29 @@ class rwa4(Node):
                             cur_part_pose = part_pose
                             break
 
-                output = "\t- {}\n\t\t- pose:\n\t\t\t- position: [{}, {}, {}] \n\t\t\t- orientation: [{}, {}, {}]".format(self.order.kitting_task.parts.color,
+                output = "\t- {}\n\t\t- pose:\n\t\t\t- position: [{}, {}, {}] \n\t\t\t- orientation: [{}, {}, {}, {}]".format(self.order.kitting_task.parts.color,
                                                                                                                     cur_part_pose.position.x, 
                                                                                                                     cur_part_pose.position.y, 
                                                                                                                     cur_part_pose.position.z, 
                                                                                                                     cur_part_pose.orientation.x, 
                                                                                                                     cur_part_pose.orientation.y, 
-                                                                                                                    cur_part_pose.orientation.z)
+                                                                                                                    cur_part_pose.orientation.z,
+                                                                                                                    cur_tray_pose.orientation.w)
                 self.get_logger().info('%s' % output)
-            ##############################################################
+            
+            self.parse_flag = False
+        # if self.tray1_poses is not None:
+        #     self.get_logger().info('%s' % self.tray1_poses.__str__())
+        # else:
+        #     self.get_logger().info('%s' % self.tray1_poses)
 
-            self.right_bin_msg = False
 
 def main(args=None):
     rclpy.init(args=args)
     my_node = rwa4()
     rclpy.spin(my_node)
+    # rwa4.furthfunc()
+    print("SDFsfdgsdfg")
     my_node.destroy_node()
     rclpy.shutdown()
 
